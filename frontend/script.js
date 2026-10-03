@@ -3,7 +3,9 @@ const API_BASE_URL =
 
 
 const userIdInput =
-    document.getElementById("userId");
+    document.getElementById(
+        "userId"
+    );
 
 const badge =
     document.getElementById(
@@ -28,9 +30,7 @@ const sendNotificationButton =
 
 let previousCount = 0;
 
-let lastNotificationId = 0;
-
-let longPollingActive = true;
+let eventSource = null;
 
 
 // ----------------------------------------------
@@ -75,10 +75,12 @@ async function fetchUnreadCount() {
 
 
 // ----------------------------------------------
-// Update bell
+// Update badge
 // ----------------------------------------------
 
-function updateNotificationBadge(count) {
+function updateNotificationBadge(
+    count
+) {
 
     badge.textContent =
         count;
@@ -94,10 +96,12 @@ function updateNotificationBadge(count) {
             "none";
     }
 
+
     if (count > previousCount) {
 
         shakeBell();
     }
+
 
     previousCount =
         count;
@@ -123,73 +127,76 @@ function shakeBell() {
 
 
 // ----------------------------------------------
-// Long Polling
+// Handle SSE notification
 // ----------------------------------------------
 
-async function longPollNotifications() {
+function handleNotification(
+    event
+) {
 
-    if (!longPollingActive) {
-        return;
-    }
+    const notification =
+        JSON.parse(
+            event.data
+        );
+
+
+    console.log(
+        "New notification:",
+        notification
+    );
+
+
+    status.textContent =
+        notification.message;
+
+
+    fetchUnreadCount();
+
+
+    shakeBell();
+}
+
+
+// ----------------------------------------------
+// Connect to SSE
+// ----------------------------------------------
+
+function connectToNotificationStream() {
 
     const userId =
         userIdInput.value;
 
-    try {
 
-        const response =
-            await fetch(
-                `${API_BASE_URL}/notifications/long-poll` +
-                `?user_id=${userId}` +
-                `&last_notification_id=${lastNotificationId}`
-            );
+    if (eventSource) {
 
-        if (!response.ok) {
-
-            throw new Error(
-                "Long polling request failed"
-            );
-        }
-
-        const data =
-            await response.json();
-
-
-        if (
-            data.notification_available &&
-            data.notification
-        ) {
-
-            const notification =
-                data.notification;
-
-
-            lastNotificationId =
-                notification.id;
-
-
-            status.textContent =
-                notification.message;
-
-
-            await fetchUnreadCount();
-
-
-            shakeBell();
-        }
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        status.textContent =
-            "Long polling connection failed.";
+        eventSource.close();
     }
 
 
-    // Immediately start another request
-    longPollNotifications();
+    eventSource =
+        new EventSource(
+            `${API_BASE_URL}/notifications/stream?user_id=${userId}`
+        );
+
+
+    eventSource.addEventListener(
+        "notification",
+        handleNotification
+    );
+
+
+    eventSource.onopen = () => {
+
+        status.textContent =
+            "Connected to notification stream.";
+    };
+
+
+    eventSource.onerror = () => {
+
+        status.textContent =
+            "Notification stream disconnected. Browser will retry...";
+    };
 }
 
 
@@ -202,7 +209,10 @@ sendNotificationButton.addEventListener(
     async () => {
 
         const userId =
-            Number(userIdInput.value);
+            Number(
+                userIdInput.value
+            );
+
 
         try {
 
@@ -266,7 +276,7 @@ fetchUnreadCount();
 
 
 // ----------------------------------------------
-// Start long polling
+// Start SSE
 // ----------------------------------------------
 
-longPollNotifications();
+connectToNotificationStream();

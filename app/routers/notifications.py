@@ -1,4 +1,8 @@
+import asyncio
+import json
+
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +20,11 @@ from app.services.notification_service import (
     create_notification,
     get_unread_count,
 )
+from app.services.sse_manager import (
+    sse_manager,
+)
+
+
 
 
 router = APIRouter(
@@ -41,9 +50,22 @@ async def create(
         message=payload.message,
     )
 
-    await long_polling_manager.notify(
+    await sse_manager.publish(
         user_id=notification.user_id,
-        notification_id=notification.id,
+        event={
+            "type": "notification",
+            "data": {
+                "id": notification.id,
+                "user_id": notification.user_id,
+                "notification_type":
+                    notification.notification_type,
+                "title": notification.title,
+                "message": notification.message,
+                "is_read": notification.is_read,
+                "created_at":
+                    notification.created_at.isoformat(),
+            },
+        },
     )
 
     return notification
@@ -145,3 +167,57 @@ async def long_poll(
         "notification_available": True,
         "notification": new_notification,
     }
+
+async def notification_event_generator(
+    user_id: int,
+):
+
+    queue = await sse_manager.connect(
+        user_id
+    )
+
+    try:
+
+        while True:
+
+            try:
+
+                event = await asyncio.wait_for(
+                    queue.get(),
+                    timeout=15,
+                )
+
+                yield (
+                    f"event: {event['type']}\n"
+                    f"data: "
+                    f"{json.dumps(event['data'])}\n\n"
+                )
+            # Some proxies/load balancers may consider an idle connection inactive.
+            # We can periodically send an SSE comment
+            # SSE comments aren't dispatched as events to the application, but they keep the connection active.
+            except asyncio.TimeoutError:
+
+                yield ": heartbeat\n\n"
+
+    finally:
+
+        await sse_manager.disconnect(
+            user_id,
+            queue,
+        )
+
+@router.get("/stream")
+async def notification_stream(
+    user_id: int,
+):
+
+    return StreamingResponse(
+        notification_event_generator(
+            user_id
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
