@@ -1,0 +1,123 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+}
+
+.container {
+    width: 500px;
+    max-width: 90%;
+    margin: 100px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.user-section {
+    margin-bottom: 40px;
+}
+
+.user-section input {
+    width: 80px;
+    padding: 8px;
+    margin-left: 10px;
+}
+
+.notification-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 40px;
+}
+
+.bell-button {
+    position: relative;
+
+    border: none;
+    background: transparent;
+
+    font-size: 50px;
+
+    cursor: pointer;
+
+    padding: 10px;
+}
+
+.notification-badge {
+    position: absolute;
+
+    top: 0;
+    right: 0;
+
+    min-width: 25px;
+    height: 25px;
+
+    padding: 4px;
+
+    background: red;
+    color: white;
+
+    border-radius: 50%;
+
+    font-size: 14px;
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.actions button {
+    padding: 10px 20px;
+
+    border: none;
+    border-radius: 6px;
+
+    background: #333;
+    color: white;
+
+    cursor: pointer;
+}
+
+#status {
+    margin-top: 20px;
+    color: #666;
+}
+
+
+/* Bell animation */
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+
+    0% {
+        transform: rotate(0deg);
+    }
+
+    20% {
+        transform: rotate(-15deg);
+    }
+
+    40% {
+        transform: rotate(15deg);
+    }
+
+    60% {
+        transform: rotate(-10deg);
+    }
+
+    80% {
+        transform: rotate(10deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}

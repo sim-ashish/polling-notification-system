@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Notification Demo</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Notification Demo</h1>
+
+        <div class="user-section">
+
+            <label for="userId">
+                Current User ID
+            </label>
+
+            <input
+                id="userId"
+                type="number"
+                value="1"
+                min="1"
+            >
+
+        </div>
+
+        <div class="notification-container">
+
+            <button
+                id="notificationBell"
+                class="bell-button"
+                type="button"
+            >
+
+                <span class="bell-icon">
+                    🔔
+                </span>
+
+                <span
+                    id="notificationBadge"
+                    class="notification-badge"
+                >
+                    0
+                </span>
+
+            </button>
+
+        </div>
+
+        <div class="actions">
+
+            <button
+                id="sendNotification"
+                type="button"
+            >
+                Create Notification
+            </button>
+
+        </div>
+
+        <div id="status">
+            Waiting for notifications...
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
