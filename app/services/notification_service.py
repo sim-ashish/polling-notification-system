@@ -2,6 +2,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
+from app.services.long_polling_manager import (
+    long_polling_manager,
+)
 
 
 def create_notification(
@@ -21,7 +24,9 @@ def create_notification(
     )
 
     db.add(notification)
+
     db.commit()
+
     db.refresh(notification)
 
     return notification

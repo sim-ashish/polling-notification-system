@@ -1,42 +1,64 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL =
+    "http://localhost:8000";
 
 
 const userIdInput =
     document.getElementById("userId");
 
 const badge =
-    document.getElementById("notificationBadge");
+    document.getElementById(
+        "notificationBadge"
+    );
 
 const bell =
-    document.getElementById("notificationBell");
+    document.getElementById(
+        "notificationBell"
+    );
 
 const status =
-    document.getElementById("status");
+    document.getElementById(
+        "status"
+    );
 
 const sendNotificationButton =
-    document.getElementById("sendNotification");
+    document.getElementById(
+        "sendNotification"
+    );
 
 
 let previousCount = 0;
 
+let lastNotificationId = 0;
+
+let longPollingActive = true;
+
+
+// ----------------------------------------------
+// Fetch unread count
+// ----------------------------------------------
 
 async function fetchUnreadCount() {
 
-    const userId = userIdInput.value;
+    const userId =
+        userIdInput.value;
 
     try {
 
-        const response = await fetch(
-            `${API_BASE_URL}/notifications/unread-count?user_id=${userId}`
-        );
+        const response =
+            await fetch(
+                `${API_BASE_URL}/notifications/unread-count` +
+                `?user_id=${userId}`
+            );
 
         if (!response.ok) {
+
             throw new Error(
                 "Failed to fetch unread count"
             );
         }
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
         updateNotificationBadge(
             data.unread_count
@@ -47,41 +69,133 @@ async function fetchUnreadCount() {
         console.error(error);
 
         status.textContent =
-            "Unable to fetch notifications.";
+            "Unable to fetch notification count.";
     }
 }
 
+
+// ----------------------------------------------
+// Update bell
+// ----------------------------------------------
 
 function updateNotificationBadge(count) {
 
-    badge.textContent = count;
+    badge.textContent =
+        count;
 
     if (count > 0) {
-        badge.style.display = "flex";
+
+        badge.style.display =
+            "flex";
+
     } else {
-        badge.style.display = "none";
+
+        badge.style.display =
+            "none";
     }
 
     if (count > previousCount) {
+
         shakeBell();
     }
 
-    previousCount = count;
-
-    status.textContent =
-        `Unread notifications: ${count}`;
+    previousCount =
+        count;
 }
 
+
+// ----------------------------------------------
+// Bell animation
+// ----------------------------------------------
 
 function shakeBell() {
 
-    bell.classList.remove("shake");
+    bell.classList.remove(
+        "shake"
+    );
 
     void bell.offsetWidth;
 
-    bell.classList.add("shake");
+    bell.classList.add(
+        "shake"
+    );
 }
 
+
+// ----------------------------------------------
+// Long Polling
+// ----------------------------------------------
+
+async function longPollNotifications() {
+
+    if (!longPollingActive) {
+        return;
+    }
+
+    const userId =
+        userIdInput.value;
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE_URL}/notifications/long-poll` +
+                `?user_id=${userId}` +
+                `&last_notification_id=${lastNotificationId}`
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Long polling request failed"
+            );
+        }
+
+        const data =
+            await response.json();
+
+
+        if (
+            data.notification_available &&
+            data.notification
+        ) {
+
+            const notification =
+                data.notification;
+
+
+            lastNotificationId =
+                notification.id;
+
+
+            status.textContent =
+                notification.message;
+
+
+            await fetchUnreadCount();
+
+
+            shakeBell();
+        }
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+            "Long polling connection failed.";
+    }
+
+
+    // Immediately start another request
+    longPollNotifications();
+}
+
+
+// ----------------------------------------------
+// Create test notification
+// ----------------------------------------------
 
 sendNotificationButton.addEventListener(
     "click",
@@ -92,39 +206,46 @@ sendNotificationButton.addEventListener(
 
         try {
 
-            const response = await fetch(
-                `${API_BASE_URL}/notifications`,
-                {
-                    method: "POST",
+            const response =
+                await fetch(
+                    `${API_BASE_URL}/notifications`,
+                    {
+                        method: "POST",
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
 
-                    body: JSON.stringify({
-                        user_id: userId,
+                        body: JSON.stringify({
 
-                        notification_type:
-                            "connection_request",
+                            user_id:
+                                userId,
 
-                        title:
-                            "New Connection Request",
+                            notification_type:
+                                "connection_request",
 
-                        message:
-                            "Someone sent you a connection request"
-                    })
-                }
-            );
+                            title:
+                                "New Connection Request",
+
+                            message:
+                                "Someone sent you a connection request"
+                        })
+                    }
+                );
+
 
             if (!response.ok) {
+
                 throw new Error(
                     "Failed to create notification"
                 );
             }
 
+
             status.textContent =
                 "Notification created.";
+
 
         } catch (error) {
 
@@ -137,12 +258,15 @@ sendNotificationButton.addEventListener(
 );
 
 
-// Initial request
+// ----------------------------------------------
+// Initial state
+// ----------------------------------------------
+
 fetchUnreadCount();
 
 
-// Poll every 5 seconds
-setInterval(
-    fetchUnreadCount,
-    5000
-);
+// ----------------------------------------------
+// Start long polling
+// ----------------------------------------------
+
+longPollNotifications();
