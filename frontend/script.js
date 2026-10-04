@@ -2,25 +2,33 @@ const API_BASE_URL =
     "http://localhost:8000";
 
 
+const WS_BASE_URL =
+    "ws://localhost:8000";
+
+
 const userIdInput =
     document.getElementById(
         "userId"
     );
+
 
 const badge =
     document.getElementById(
         "notificationBadge"
     );
 
+
 const bell =
     document.getElementById(
         "notificationBell"
     );
 
+
 const status =
     document.getElementById(
         "status"
     );
+
 
 const sendNotificationButton =
     document.getElementById(
@@ -30,12 +38,12 @@ const sendNotificationButton =
 
 let previousCount = 0;
 
-let eventSource = null;
+let socket = null;
 
 
-// ----------------------------------------------
+// ==============================================
 // Fetch unread count
-// ----------------------------------------------
+// ==============================================
 
 async function fetchUnreadCount() {
 
@@ -50,6 +58,7 @@ async function fetchUnreadCount() {
                 `?user_id=${userId}`
             );
 
+
         if (!response.ok) {
 
             throw new Error(
@@ -57,16 +66,21 @@ async function fetchUnreadCount() {
             );
         }
 
+
         const data =
             await response.json();
+
 
         updateNotificationBadge(
             data.unread_count
         );
 
+
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
         status.textContent =
             "Unable to fetch notification count.";
@@ -74,9 +88,9 @@ async function fetchUnreadCount() {
 }
 
 
-// ----------------------------------------------
-// Update badge
-// ----------------------------------------------
+// ==============================================
+// Update notification badge
+// ==============================================
 
 function updateNotificationBadge(
     count
@@ -84,6 +98,7 @@ function updateNotificationBadge(
 
     badge.textContent =
         count;
+
 
     if (count > 0) {
 
@@ -97,7 +112,10 @@ function updateNotificationBadge(
     }
 
 
-    if (count > previousCount) {
+    if (
+        count >
+        previousCount
+    ) {
 
         shakeBell();
     }
@@ -108,9 +126,9 @@ function updateNotificationBadge(
 }
 
 
-// ----------------------------------------------
-// Bell animation
-// ----------------------------------------------
+// ==============================================
+// Shake bell
+// ==============================================
 
 function shakeBell() {
 
@@ -118,7 +136,9 @@ function shakeBell() {
         "shake"
     );
 
+
     void bell.offsetWidth;
+
 
     bell.classList.add(
         "shake"
@@ -126,83 +146,122 @@ function shakeBell() {
 }
 
 
-// ----------------------------------------------
-// Handle SSE notification
-// ----------------------------------------------
+// ==============================================
+// Handle WebSocket messages
+// ==============================================
 
-function handleNotification(
-    event
+function handleWebSocketMessage(
+    data
 ) {
 
-    const notification =
-        JSON.parse(
-            event.data
-        );
-
-
     console.log(
-        "New notification:",
-        notification
+        "Received WebSocket message:",
+        data
     );
 
 
-    status.textContent =
-        notification.message;
+    if (
+        data.type ===
+        "notification"
+    ) {
+
+        const notification =
+            data.data;
 
 
-    fetchUnreadCount();
+        status.textContent =
+            notification.message;
 
 
-    shakeBell();
+        fetchUnreadCount();
+
+
+        shakeBell();
+    }
 }
 
 
-// ----------------------------------------------
-// Connect to SSE
-// ----------------------------------------------
+// ==============================================
+// Connect WebSocket
+// ==============================================
 
-function connectToNotificationStream() {
+function connectWebSocket() {
 
     const userId =
         userIdInput.value;
 
 
-    if (eventSource) {
+    if (socket) {
 
-        eventSource.close();
+        socket.close();
     }
 
 
-    eventSource =
-        new EventSource(
-            `${API_BASE_URL}/notifications/stream?user_id=${userId}`
+    socket =
+        new WebSocket(
+            `${WS_BASE_URL}/ws/notifications/${userId}`
         );
 
 
-    eventSource.addEventListener(
-        "notification",
-        handleNotification
-    );
+    socket.onopen = () => {
 
+        console.log(
+            "WebSocket connected."
+        );
 
-    eventSource.onopen = () => {
 
         status.textContent =
-            "Connected to notification stream.";
+            "WebSocket connected.";
     };
 
 
-    eventSource.onerror = () => {
+    socket.onmessage = (
+        event
+    ) => {
+
+        const data =
+            JSON.parse(
+                event.data
+            );
+
+
+        handleWebSocketMessage(
+            data
+        );
+    };
+
+
+    socket.onerror = (
+        error
+    ) => {
+
+        console.error(
+            "WebSocket error:",
+            error
+        );
+
 
         status.textContent =
-            "Notification stream disconnected. Browser will retry...";
+            "WebSocket error.";
+    };
+
+
+    socket.onclose = () => {
+
+        console.log(
+            "WebSocket disconnected."
+        );
+
+
+        status.textContent =
+            "WebSocket disconnected.";
     };
 }
 
 
-// ----------------------------------------------
-// Create test notification
-// ----------------------------------------------
+// ==============================================
+// Create notification
+// ==============================================
 
 sendNotificationButton.addEventListener(
     "click",
@@ -259,7 +318,10 @@ sendNotificationButton.addEventListener(
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                error
+            );
+
 
             status.textContent =
                 "Failed to create notification.";
@@ -268,15 +330,10 @@ sendNotificationButton.addEventListener(
 );
 
 
-// ----------------------------------------------
-// Initial state
-// ----------------------------------------------
+// ==============================================
+// Initial application startup
+// ==============================================
 
 fetchUnreadCount();
 
-
-// ----------------------------------------------
-// Start SSE
-// ----------------------------------------------
-
-connectToNotificationStream();
+connectWebSocket();

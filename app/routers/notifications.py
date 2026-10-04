@@ -20,10 +20,13 @@ from app.services.notification_service import (
     create_notification,
     get_unread_count,
 )
+from app.services.redis_manager import redis_manager
 from app.services.sse_manager import (
     sse_manager,
 )
-
+from app.services.websocket_manager import (
+    websocket_manager,
+)
 
 
 
@@ -45,28 +48,29 @@ async def create(
     notification = create_notification(
         db,
         user_id=payload.user_id,
-        notification_type=payload.notification_type,
+        notification_type=
+            payload.notification_type,
         title=payload.title,
         message=payload.message,
     )
 
-    await sse_manager.publish(
-        user_id=notification.user_id,
-        event={
-            "type": "notification",
-            "data": {
+
+    await redis_manager.publish_notification(
+    user_id=notification.user_id,
+    message={
+        "type": "notification",
+        "data": {
                 "id": notification.id,
                 "user_id": notification.user_id,
-                "notification_type":
-                    notification.notification_type,
+                "notification_type": notification.notification_type,
                 "title": notification.title,
                 "message": notification.message,
                 "is_read": notification.is_read,
-                "created_at":
-                    notification.created_at.isoformat(),
+                "created_at": notification.created_at.isoformat(),
             },
         },
     )
+
 
     return notification
 
